@@ -139,45 +139,51 @@ class ImageSelector(object):
 
 
     def __prepare_cluster_sets__hdbscan(self, files):
-        """ Internal function for clustering input image files, returns array of indexs of each input file
-        (which determines which cluster a given file belongs)
+        """ Internal function for clustering input image files, returns array of indices of each input file
+        (which determines which cluster a given file belongs to)
     
         :param object: base class inheritance
         :type object: class:Object
         :param files: list of input image files
         :type files: python list of opencv numpy images
-        :return: Returns array containing index for each file for cluster belongingness
+        :return: Returns array containing indices for each file for cluster belongingness
         :rtype: np.array
         """
     
         all_dst = []
         for img_file in files:
             img = cv2.cvtColor(img_file, cv2.COLOR_BGR2GRAY)
-            img = cv2.resize(img, (256, 256), img)
+            img = cv2.resize(img, (256, 256))
             imf = np.float32(img) / 255.0  # float conversion/scale
-            dst = cv2.dct(imf)  # the dct
+            dst = cv2.dct(imf)  # the DCT
             dst = dst[:16, :16]
             dst = dst.reshape((256))
             all_dst.append(dst)
     
+        # Perform HDBSCAN clustering
         Hdbascan = hdbscan.HDBSCAN(min_cluster_size=2, metric='manhattan').fit(all_dst)
-        labels = np.add(Hdbascan.labels_, 1)
+        labels = np.add(Hdbascan.labels_, 1)  # Shift cluster labels
         nb_clusters = len(np.unique(Hdbascan.labels_))
     
+        # Initialize both variables before the loop
         files_clusters_index_array = []
-        files_clusters_index_array_of_only_one_image = []  # Initialize this variable
+        files_clusters_index_array_of_only_one_image = []  # Initialize here
     
+        # Loop through clusters and store index arrays
         for i in np.arange(nb_clusters):
+            index_array = np.where(labels == i)  # Get indices of files belonging to this cluster
+            
+            # Handle the case where i == 0 (single image cluster)
             if i == 0:
-                index_array = np.where(labels == i)
                 files_clusters_index_array_of_only_one_image.append(index_array)
             else:
-                index_array = np.where(labels == i)
                 files_clusters_index_array.append(index_array)
     
-        # If no images with i == 0, return an empty array
+        # Convert to numpy array
         files_clusters_index_array = np.array(files_clusters_index_array)
+    
         return files_clusters_index_array, files_clusters_index_array_of_only_one_image
+
 
 
     def __plots_for_clustering(self,Hdbascan,all_dst):
