@@ -141,24 +141,17 @@ class ImageSelector(object):
     def __prepare_cluster_sets__hdbscan(self, files):
         """ Internal function for clustering input image files, returns array of indexs of each input file
         (which determines which cluster a given file belongs)
- 
+    
         :param object: base class inheritance
-        :type object: class:`Object`
-        :param files: list of input image files 
+        :type object: class:Object
+        :param files: list of input image files
         :type files: python list of opencv numpy images
-        :return: Returns array containing index for each file for cluster belongingness 
-        :rtype: np.array   
+        :return: Returns array containing index for each file for cluster belongingness
+        :rtype: np.array
         """
-
-        # all_hists = []
+    
         all_dst = []
-        # Calculating the histograms for each image and adding them into **all_hists** list or all_dst** list
         for img_file in files:
-            # img1 = cv2.cvtColor(img_file, cv2.COLOR_BGR2GRAY)
-            # # (thresh, img) = cv2.threshold(img1, 150, 255, cv2.THRESH_BINARY)
-            # hist = cv2.calcHist([img1], [0], None, [256], [0, 256])
-            # hist = hist.reshape((256))
-            # all_hists.append(hist)
             img = cv2.cvtColor(img_file, cv2.COLOR_BGR2GRAY)
             img = cv2.resize(img, (256, 256), img)
             imf = np.float32(img) / 255.0  # float conversion/scale
@@ -166,56 +159,26 @@ class ImageSelector(object):
             dst = dst[:16, :16]
             dst = dst.reshape((256))
             all_dst.append(dst)
-
-
-        # HDBSCAN(algorithm='best', alpha=1.0, approx_min_span_tree=True,
-        #         gen_min_span_tree=True, leaf_size=40, memory=Memory(cachedir=None),
-        #         metric='euclidean', min_cluster_size=5, min_samples=None, p=None)
-        # {'braycurtis': hdbscan.dist_metrics.BrayCurtisDistance,
-        # 'canberra': hdbscan.dist_metrics.CanberraDistance,
-        # 'chebyshev': hdbscan.dist_metrics.ChebyshevDistance,
-        # 'cityblock': hdbscan.dist_metrics.ManhattanDistance,
-        # 'dice': hdbscan.dist_metrics.DiceDistance,
-        # 'euclidean': hdbscan.dist_metrics.EuclideanDistance,
-        # 'hamming': hdbscan.dist_metrics.HammingDistance,
-        # 'haversine': hdbscan.dist_metrics.HaversineDistance,
-        # 'infinity': hdbscan.dist_metrics.ChebyshevDistance,
-        # 'jaccard': hdbscan.dist_metrics.JaccardDistance,
-        # 'kulsinski': hdbscan.dist_metrics.KulsinskiDistance,
-        # 'l1': hdbscan.dist_metrics.ManhattanDistance,
-        # 'l2': hdbscan.dist_metrics.EuclideanDistance,
-        # 'mahalanobis': hdbscan.dist_metrics.MahalanobisDistance,
-        # 'manhattan': hdbscan.dist_metrics.ManhattanDistance,
-        # 'matching': hdbscan.dist_metrics.MatchingDistance,
-        # 'minkowski': hdbscan.dist_metrics.MinkowskiDistance,
-        # 'p': hdbscan.dist_metrics.MinkowskiDistance,
-        # 'pyfunc': hdbscan.dist_metrics.PyFuncDistance,
-        # 'rogerstanimoto': hdbscan.dist_metrics.RogersTanimotoDistance,
-        # 'russellrao': hdbscan.dist_metrics.RussellRaoDistance,
-        # 'seuclidean': hdbscan.dist_metrics.SEuclideanDistance,
-        # 'sokalmichener': hdbscan.dist_metrics.SokalMichenerDistance,
-        # 'sokalsneath': hdbscan.dist_metrics.SokalSneathDistance,
-        # 'wminkowski': hdbscan.dist_metrics.WMinkowskiDistance}
-        # Hdbascan = hdbscan.HDBSCAN(min_cluster_size=2,metric='manhattan').fit(all_hists)
-        Hdbascan = hdbscan.HDBSCAN(min_cluster_size=2,metric='manhattan').fit(all_dst)
-        labels = np.add(Hdbascan.labels_,1)
+    
+        Hdbascan = hdbscan.HDBSCAN(min_cluster_size=2, metric='manhattan').fit(all_dst)
+        labels = np.add(Hdbascan.labels_, 1)
         nb_clusters = len(np.unique(Hdbascan.labels_))
-        # x=self.__plots_for_clustering(Hdbascan,all_dst)
-        # del x
-
+    
         files_clusters_index_array = []
-        files_clusters_index_array_of_only_one_image = []
+        files_clusters_index_array_of_only_one_image = []  # Initialize this variable
+    
         for i in np.arange(nb_clusters):
-            # print(i)
-            if i==0:
+            if i == 0:
                 index_array = np.where(labels == i)
                 files_clusters_index_array_of_only_one_image.append(index_array)
             else:
                 index_array = np.where(labels == i)
                 files_clusters_index_array.append(index_array)
-
+    
+        # If no images with i == 0, return an empty array
         files_clusters_index_array = np.array(files_clusters_index_array)
-        return files_clusters_index_array,files_clusters_index_array_of_only_one_image
+        return files_clusters_index_array, files_clusters_index_array_of_only_one_image
+
 
     def __plots_for_clustering(self,Hdbascan,all_dst):
         # cluster_spanning_tree = Hdbascan.minimum_spanning_tree_.plot(edge_cmap='viridis',
