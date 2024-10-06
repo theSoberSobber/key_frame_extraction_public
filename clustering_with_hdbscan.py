@@ -70,21 +70,19 @@ class ImageSelector:
 
         files_clusters_index_array = []
         files_clusters_index_array_of_only_one_image = []
-        for i in np.arange(nb_clusters):
-            if i == 0:
-                index_array = np.where(labels == i)
+        for i in range(nb_clusters):
+            index_array = np.where(labels == i)[0]
+            if i == 0 or len(index_array) == 1:
                 files_clusters_index_array_of_only_one_image.append(index_array)
             else:
-                index_array = np.where(labels == i)
                 files_clusters_index_array.append(index_array)
 
-        files_clusters_index_array = np.array(files_clusters_index_array)
         return files_clusters_index_array, files_clusters_index_array_of_only_one_image
 
-    def __get_laplacian_scores(self, files, n_images):
+    def __get_laplacian_scores(self, files, cluster):
         variance_laplacians = []
-        for image_i in n_images:
-            img_file = files[image_i]
+        for image_index in cluster:
+            img_file = files[image_index]
             img = cv2.cvtColor(img_file, cv2.COLOR_BGR2GRAY)
             variance_laplacian = self.__variance_of_laplacian__(img)
             variance_laplacians.append(variance_laplacian)
@@ -92,47 +90,52 @@ class ImageSelector:
 
     def __get_best_images_index_from_each_cluster__(self, files, files_clusters_index_array):
         filtered_items = []
-        clusters = np.arange(len(files_clusters_index_array))
-        for cluster_i in clusters:
-            curr_row = files_clusters_index_array[cluster_i][0]
-            n_images = np.arange(len(curr_row))
-            variance_laplacians = self.__get_laplacian_scores(files, curr_row)
-            try:
-                selected_frame_of_current_cluster = curr_row[np.argmax(variance_laplacians)]
+        for cluster in files_clusters_index_array:
+            variance_laplacians = self.__get_laplacian_scores(files, cluster)
+            if variance_laplacians:
+                selected_frame_of_current_cluster = cluster[np.argmax(variance_laplacians)]
                 filtered_items.append(selected_frame_of_current_cluster)
-            except ValueError:
-                continue
         return filtered_items
 
     def select_best_frames(self, input_key_frames, output_folder):
         filtered_images_list = []
+        files_clusters_index_array = []
+        files_clusters_index_array_of_only_one_image = []
 
         if len(input_key_frames) >= 1:
             files_clusters_index_array, files_clusters_index_array_of_only_one_image = self.__prepare_cluster_sets__hdbscan(input_key_frames)
             selected_images_index = self.__get_best_images_index_from_each_cluster__(
                 input_key_frames, files_clusters_index_array
             )
-            files_clusters_index_array_of_only_one_image = [item for t in files_clusters_index_array_of_only_one_image for item in t]
-            files_clusters_index_array_of_only_one_image = files_clusters_index_array_of_only_one_image[0].tolist()
-            selected_images_index.extend(files_clusters_index_array_of_only_one_image)
+            if files_clusters_index_array_of_only_one_image:
+                for cluster in files_clusters_index_array_of_only_one_image:
+                    selected_images_index.extend(cluster)
             
             for index in selected_images_index:
                 img = input_key_frames[index]
                 filtered_images_list.append(img)
             
             # Saving images of same clusters
-            for i, images in enumerate(files_clusters_index_array):
+            for i, cluster in enumerate(files_clusters_index_array):
                 path = os.path.join(output_folder, str(i))
                 os.makedirs(path, exist_ok=True)
-                for image in images[0]:
-                    cv2.imwrite(os.path.join(path, f"{image}.jpeg"), input_key_frames[image])
+                for image_index in cluster:
+                    cv2.imwrite(os.path.join(path, f"{image_index}.jpeg"), input_key_frames[image_index])
         else:
             filtered_images_list = input_key_frames
 
         # Saving clusters of single image cluster
-        for i, image in enumerate(files_clusters_index_array_of_only_one_image[0], start=len(files_clusters_index_array)):
-            path = os.path.join(output_folder, str(i))
-            os.makedirs(path, exist_ok=True)
-            cv2.imwrite(os.path.join(path, f"{image}.jpeg"), input_key_frames[image])
+        if files_clusters_index_array_of_only_one_image:
+            for i, cluster in enumerate(files_clusters_index_array_of_only_one_image, start=len(files_clusters_index_array)):
+                path = os.path.join(output_folder, str(i))
+                os.makedirs(path, exist_ok=True)
+                for image_index in cluster:
+                    cv2.imwrite(os.path.join(path, f"{image_index}.jpeg"), input_key_frames[image_index])
 
         return filtered_images_list
+
+    def __getstate__(self):
+        return self.__dict__
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
